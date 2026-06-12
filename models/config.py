@@ -11,6 +11,7 @@ class AgentType(str, Enum):
 
 class AgentConfig(BaseModel):
     agent_type: AgentType = AgentType.RANDOM
+    minimax_depth: int = Field(default=6, ge=1, le=20)
 
 
 class GameConfig(BaseModel):

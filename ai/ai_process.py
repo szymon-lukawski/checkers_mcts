@@ -15,6 +15,9 @@ def _create_agent(config: AgentConfig) -> BaseAgent:
     if config.agent_type == AgentType.RANDOM:
         from ai.random_agent import RandomAgent
         return RandomAgent()
+    if config.agent_type == AgentType.MINIMAX:
+        from ai.minimax_agent import MinimaxAgent
+        return MinimaxAgent(depth=config.minimax_depth)
     raise ValueError(f"Nieznany typ agenta: {config.agent_type}")
 
 
