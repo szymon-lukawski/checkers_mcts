@@ -260,7 +260,7 @@ def run_pygame(config: GameConfig | None = None) -> None:
     if config is None:
         config = GameConfig(
             white_agent=AgentConfig(agent_type=AgentType.HUMAN),
-            black_agent=AgentConfig(agent_type=AgentType.MINIMAX, minimax_depth=6),
+            black_agent=AgentConfig(agent_type=AgentType.MCTS, mcts_time_ms=1500),
         )
     PygameGame(config).run()
 

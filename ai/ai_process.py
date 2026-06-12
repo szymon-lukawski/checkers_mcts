@@ -18,6 +18,9 @@ def _create_agent(config: AgentConfig) -> BaseAgent:
     if config.agent_type == AgentType.MINIMAX:
         from ai.minimax_agent import MinimaxAgent
         return MinimaxAgent(depth=config.minimax_depth)
+    if config.agent_type == AgentType.MCTS:
+        from ai.mcts_agent import MCTSAgent
+        return MCTSAgent(time_limit_ms=config.mcts_time_ms)
     raise ValueError(f"Nieznany typ agenta: {config.agent_type}")
 
 
