@@ -127,15 +127,17 @@ def _simulate(state: State) -> float:
 def _backpropagate(node: MCTSNode, result: float) -> None:
     """
     Propaguje wynik w górę drzewa.
-    result = 1.0 oznacza wygraną gracza, który ruszał się JAKO PIERWSZY w symulacji
-    (= gracza, który wykonał ruch DO węzła startowego).
-    Na każdym poziomie perspektywa jest odwracana.
+
+    _simulate zwraca 1.0 gdy wygrywa current_player WĘZŁA startowego.
+    node.wins natomiast liczy wygrane gracza, który WYKONAŁ ruch DO tego węzła
+    – czyli przeciwnika current_player. Dlatego zaczynamy od flipa (1 - result),
+    a następnie naprzemiennie odwracamy perspektywę na każdym poziomie.
     """
-    current_result = result
+    current_result = 1.0 - result   # flip: z perspektywy current_player → creator
     while node is not None:
         node.visits += 1
         node.wins += current_result
-        current_result = 1.0 - current_result  # zmiana perspektywy
+        current_result = 1.0 - current_result
         node = node.parent
 
 
