@@ -11,7 +11,7 @@ import pygame
 
 from engine.game_logic import Board
 from models.board_state import BoardState, Move
-from models.config import AgentConfig, AgentType, GameConfig
+from models.config import AgentConfig, GameConfig
 from ai.random_agent import RandomAgent
 from ai.ai_process import AIProcess
 from ui.renderer import Renderer
@@ -256,12 +256,11 @@ class PygameGame:
 # Punkt startowy
 # ---------------------------------------------------------------------------
 
-def run_pygame(config: GameConfig | None = None) -> None:
+def run_pygame() -> None:
+    from ui.menu import run_menu
+    config = run_menu()
     if config is None:
-        config = GameConfig(
-            white_agent=AgentConfig(agent_type=AgentType.HUMAN),
-            black_agent=AgentConfig(agent_type=AgentType.MCTS, mcts_time_ms=1500),
-        )
+        return
     PygameGame(config).run()
 
 
