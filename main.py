@@ -11,7 +11,7 @@ import pygame
 
 from engine.game_logic import Board
 from models.board_state import BoardState, Move
-from models.config import AgentConfig, GameConfig
+from models.config import AgentConfig, AgentType, GameConfig
 from ai.random_agent import RandomAgent
 from ai.ai_process import AIProcess
 from ui.renderer import Renderer
@@ -264,6 +264,6 @@ def run_pygame() -> None:
     PygameGame(config).run()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     mp.set_start_method("spawn")
     run_pygame()

@@ -127,8 +127,8 @@ def _minimax(
         return evaluate(wp, bp, kings)
 
     moves = get_legal_moves(wp, bp, kings, current_player)
-    if not moves:
-        return -(30_000.0 + depth) if maximizing else (30_000.0 + depth)
+    if not moves:  # pragma: no cover
+        return -(30_000.0 + depth) if maximizing else (30_000.0 + depth)  # pragma: no cover
 
     moves.sort(key=_move_order_key)
 

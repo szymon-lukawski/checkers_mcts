@@ -23,6 +23,11 @@ packages = ["engine", "ai", "models", "ui"]
 [tool.uv]
 dev-dependencies = [
     "pytest>=8.0",
+    "pytest-cov>=5.0",
     "pytest-benchmark>=4.0",
     "hypothesis>=6.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=engine --cov=ai --cov=models --cov=ui --cov=main --cov-report=term-missing"

@@ -32,11 +32,11 @@ def _build_neighbors() -> list[tuple[int, int, int, int]]:
             return -1
         if r % 2 == 0:
             if c % 2 == 0:
-                return -1  # jasne pole
+                return -1  # jasne pole  # pragma: no cover
             return r * 4 + (c - 1) // 2
         else:
             if c % 2 == 1:
-                return -1  # jasne pole
+                return -1  # jasne pole  # pragma: no cover
             return r * 4 + c // 2
 
     result = []

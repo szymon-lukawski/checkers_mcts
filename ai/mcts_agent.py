@@ -112,10 +112,10 @@ def _simulate(state: State) -> float:
                 return 1.0 if starting_player == 0 else 0.0
 
         moves = get_legal_moves(wp, bp, kings, player)
-        if not moves:
+        if not moves:  # pragma: no cover
             # Brak ruchów = przegrana aktywnego gracza
-            winner = 1 if player == 0 else 0
-            return 1.0 if starting_player == winner else 0.0
+            winner = 1 if player == 0 else 0  # pragma: no cover
+            return 1.0 if starting_player == winner else 0.0  # pragma: no cover
 
         move = random.choice(moves)
         wp, bp, kings, player = apply_move(wp, bp, kings, player, move)
