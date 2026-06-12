@@ -1,5 +1,5 @@
 """
-Generator ruchów i bić dla zwykłych pionków (bez damek – Faza 1).
+Generator ruchów i bić dla pionków i damek.
 
 Używa precomputed tablicy sąsiadów dla każdego z 32 pól.
 Kierunki: 0=UL, 1=UR, 2=DL, 3=DR
@@ -69,26 +69,41 @@ def get_simple_moves(
 ) -> list[Move]:
     """
     Zwraca listę zwykłych ruchów (bez bić) dla aktywnego gracza.
-    Nie uwzględnia damek (Faza 1).
+    Damki (brazylijskie) latają po całej przekątnej.
     """
     occupied = wp | bp
     moves: list[Move] = []
+    own = wp if current_player == 1 else bp
 
     if current_player == 1:
-        pieces = wp & ~kings
-        dirs = WHITE_DIRS
+        pawn_dirs = WHITE_DIRS
     else:
-        pieces = bp & ~kings
-        dirs = BLACK_DIRS
+        pawn_dirs = BLACK_DIRS
 
-    bb = pieces
+    bb = own
     while bb:
         from_sq = (bb & -bb).bit_length() - 1
         bb &= bb - 1
-        for d in dirs:
-            to_sq = NEIGHBORS[from_sq][d]
-            if to_sq != -1 and not (occupied >> to_sq & 1):
-                moves.append(Move(from_sq=from_sq, to_sq=to_sq))
+        is_king = bool((1 << from_sq) & kings)
+        dirs = ALL_DIRS if is_king else pawn_dirs
+
+        if is_king:
+            # Damka lata wzdłuż przekątnej – iteruj "promień" w każdym kierunku
+            for d in dirs:
+                cur = from_sq
+                while True:
+                    nxt = NEIGHBORS[cur][d]
+                    if nxt == -1:
+                        break
+                    if occupied >> nxt & 1:
+                        break  # zablokowane przez pionka
+                    moves.append(Move(from_sq=from_sq, to_sq=nxt))
+                    cur = nxt
+        else:
+            for d in dirs:
+                to_sq = NEIGHBORS[from_sq][d]
+                if to_sq != -1 and not (occupied >> to_sq & 1):
+                    moves.append(Move(from_sq=from_sq, to_sq=to_sq))
 
     return moves
 
@@ -104,42 +119,75 @@ def _find_captures_from(
     kings: int,
     current_player: int,
     captured_mask: int,
-    dirs: tuple[int, ...],
+    is_king: bool,
 ) -> list[tuple[int, list[int]]]:
     """
     Rekurencyjnie szuka bić z pola sq.
     Zwraca listę (ostateczne_pole_docelowe, lista_zbitych_pól).
     captured_mask: bitmaska już zbitych pionków (wirtualnie usunięte z planszy).
+    is_king: czy bijący pionek jest damką.
     """
     opponent = bp if current_player == 1 else wp
     own = wp if current_player == 1 else bp
-    # Efektywne zajęcie planszy – bez już zbitych pionków
     effective_opponent = opponent & ~captured_mask
-    effective_occupied = ((wp | bp) & ~captured_mask) | (1 << sq)  # nasz pionek jest na sq
+    # Efektywne zajęte – bez zbitych pionków, ale z naszym pionkiem na sq
+    effective_occupied = ((wp | bp) & ~captured_mask) | (1 << sq)
+
+    if is_king:
+        dirs = ALL_DIRS
+    else:
+        dirs = WHITE_DIRS if current_player == 1 else BLACK_DIRS
 
     results: list[tuple[int, list[int]]] = []
 
     for d in dirs:
-        mid_sq = NEIGHBORS[sq][d]
-        if mid_sq == -1:
-            continue
-        if not (effective_opponent >> mid_sq & 1):
-            continue  # nie ma przeciwnika do zbicia
-        to_sq = NEIGHBORS[mid_sq][d]
-        if to_sq == -1:
-            continue
-        if effective_occupied >> to_sq & 1 and to_sq != sq:
-            continue  # pole zajęte (własny pionek lub nie-zbity przeciwnik)
-        # Lądowanie jest możliwe – wykonaj bicie i szukaj dalej
-        new_captured = captured_mask | (1 << mid_sq)
-        continuations = _find_captures_from(
-            to_sq, wp, bp, kings, current_player, new_captured, dirs
-        )
-        if continuations:
-            for (final_sq, cap_list) in continuations:
-                results.append((final_sq, [mid_sq] + cap_list))
+        if is_king:
+            # Damka: szukaj przeciwnika wzdłuż promienia, ląduj za nim
+            cur = sq
+            while True:
+                mid_candidate = NEIGHBORS[cur][d]
+                if mid_candidate == -1:
+                    break
+                if effective_occupied >> mid_candidate & 1:
+                    # Trafiliśmy w pionka
+                    if not (effective_opponent >> mid_candidate & 1):
+                        break  # własny pionek – blokuje
+                    # Przeciwnik – sprawdź pola lądowania za nim
+                    land = NEIGHBORS[mid_candidate][d]
+                    while land != -1 and not (effective_occupied >> land & 1 and land != sq):
+                        new_captured = captured_mask | (1 << mid_candidate)
+                        continuations = _find_captures_from(
+                            land, wp, bp, kings, current_player, new_captured, True
+                        )
+                        if continuations:
+                            for (final_sq, cap_list) in continuations:
+                                results.append((final_sq, [mid_candidate] + cap_list))
+                        else:
+                            results.append((land, [mid_candidate]))
+                        land = NEIGHBORS[land][d]
+                    break  # po biciu nie przechodzimy przez kolejne pionki
+                cur = mid_candidate
         else:
-            results.append((to_sq, [mid_sq]))
+            # Zwykły pionek: jeden krok do przodu do przeciwnika, jeden za nim
+            mid_sq = NEIGHBORS[sq][d]
+            if mid_sq == -1:
+                continue
+            if not (effective_opponent >> mid_sq & 1):
+                continue
+            to_sq = NEIGHBORS[mid_sq][d]
+            if to_sq == -1:
+                continue
+            if effective_occupied >> to_sq & 1 and to_sq != sq:
+                continue
+            new_captured = captured_mask | (1 << mid_sq)
+            continuations = _find_captures_from(
+                to_sq, wp, bp, kings, current_player, new_captured, False
+            )
+            if continuations:
+                for (final_sq, cap_list) in continuations:
+                    results.append((final_sq, [mid_sq] + cap_list))
+            else:
+                results.append((to_sq, [mid_sq]))
 
     return results
 
@@ -150,24 +198,21 @@ def get_captures(
     """
     Zwraca wszystkie możliwe bicia dla aktywnego gracza.
     Zwraca TYLKO ścieżki z maksymalną liczbą bić (zasada większości – warcaby brazylijskie).
-    Nie uwzględnia damek (Faza 1).
+    Obsługuje zwykłe pionki i damki.
     """
-    if current_player == 1:
-        pieces = wp & ~kings
-        dirs = WHITE_DIRS
-    else:
-        pieces = bp & ~kings
-        dirs = BLACK_DIRS
-
+    own = wp if current_player == 1 else bp
     all_moves: list[Move] = []
     max_captures = 0
 
-    bb = pieces
+    bb = own
     while bb:
         from_sq = (bb & -bb).bit_length() - 1
         bb &= bb - 1
+        is_king = bool((1 << from_sq) & kings)
 
-        paths = _find_captures_from(from_sq, wp, bp, kings, current_player, 0, dirs)
+        paths = _find_captures_from(
+            from_sq, wp, bp, kings, current_player, 0, is_king
+        )
         for (to_sq, cap_list) in paths:
             n = len(cap_list)
             if n > max_captures:
