@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from models.board_state import BoardState, Move
 from engine.move_generator import get_legal_moves, apply_move, is_game_over
+from engine.fast_rollout import fast_simulate
 from ai.base_agent import BaseAgent
 
 State = tuple[int, int, int, int]  # (wp, bp, kings, current_player)
@@ -96,32 +97,11 @@ _MAX_ROLLOUT_DEPTH = 200
 def _simulate(state: State) -> float:
     """
     Losowa rozgrywka do końca lub do _MAX_ROLLOUT_DEPTH ruchów.
-    Zwraca wynik z perspektywy gracza, który ruszy się JAKO PIERWSZY w tej symulacji
-    (czyli gracza-właściciela węzła, z którego startujemy).
+    Deleguje do fast_simulate (JIT gdy numba dostępna, pure-Python w przeciwnym razie).
+    Zwraca wynik z perspektywy gracza startowego (1.0 = wygrana, 0.0 = przegrana, 0.5 = remis).
     """
     wp, bp, kings, player = state
-    starting_player = player
-
-    for _ in range(_MAX_ROLLOUT_DEPTH):
-        result = is_game_over(wp, bp, player, kings)
-        if result != 0:
-            # result: 1=białe wygrały, -1=czarne wygrały
-            if result == 1:
-                return 1.0 if starting_player == 1 else 0.0
-            else:
-                return 1.0 if starting_player == 0 else 0.0
-
-        moves = get_legal_moves(wp, bp, kings, player)
-        if not moves:  # pragma: no cover
-            # Brak ruchów = przegrana aktywnego gracza
-            winner = 1 if player == 0 else 0  # pragma: no cover
-            return 1.0 if starting_player == winner else 0.0  # pragma: no cover
-
-        move = random.choice(moves)
-        wp, bp, kings, player = apply_move(wp, bp, kings, player, move)
-
-    # Remis po wyczerpaniu głębokości
-    return 0.5
+    return fast_simulate(wp, bp, kings, player, _MAX_ROLLOUT_DEPTH)
 
 
 def _backpropagate(node: MCTSNode, result: float) -> None:

@@ -10,7 +10,7 @@ dependencies = [
 
 [project.optional-dependencies]
 fast = [
-    "numba>=0.60",  # JIT dla MCTS – wymaga LLVM 14/15, dodać przed Fazą 4
+    "numba>=0.60,<0.62",  # JIT dla MCTS; wymaga LLVM 18 (brew install llvm@18)
 ]
 
 [build-system]
