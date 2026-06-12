@@ -133,10 +133,9 @@ def _find_captures_from(
     # Efektywne zajęte – bez zbitych pionków, ale z naszym pionkiem na sq
     effective_occupied = ((wp | bp) & ~captured_mask) | (1 << sq)
 
-    if is_king:
-        dirs = ALL_DIRS
-    else:
-        dirs = WHITE_DIRS if current_player == 1 else BLACK_DIRS
+    # Warcaby brazylijskie: pionki biją we wszystkich 4 kierunkach (również do tyłu).
+    # Tylko zwykłe PRZEMIESZCZANIE jest ograniczone do kierunku do przodu.
+    dirs = ALL_DIRS
 
     results: list[tuple[int, list[int]]] = []
 
