@@ -17,6 +17,7 @@ from main import (
     play_one_game,
     run_headless,
     PygameGame,
+    MoveAnimation,
     run_pygame,
     COLORS,
     MAX_MOVES_PER_GAME,
@@ -66,6 +67,139 @@ class TestConstants:
     def test_colors_dict(self):
         assert COLORS[1] == "Białe"
         assert COLORS[0] == "Czarne"
+
+
+# ---------------------------------------------------------------------------
+# MoveAnimation
+# ---------------------------------------------------------------------------
+
+class TestMoveAnimation:
+    def _make_renderer(self):
+        from ui.renderer import Renderer
+        return Renderer(window_size=720)
+
+    def _make_simple_move(self):
+        return Move(from_sq=20, to_sq=16)
+
+    def _make_multi_jump_move(self):
+        # 2-jump move with one intermediate landing square
+        return Move(from_sq=22, to_sq=6, captured=[17, 9], path=[13])
+
+    def test_init_simple_move(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=300)
+        assert anim.move is move
+        assert not anim.done
+        assert len(anim._segments) == 1
+        assert anim._segments[0] == (20, 16)
+
+    def test_init_multi_jump_move(self):
+        renderer = self._make_renderer()
+        move = self._make_multi_jump_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=300)
+        # waypoints: [22, 13, 6] → 2 segments
+        assert len(anim._segments) == 2
+        assert anim._segments[0] == (22, 13)
+        assert anim._segments[1] == (13, 6)
+
+    def test_done_false_initially(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=300)
+        assert anim.done is False
+
+    def test_done_true_after_all_segments(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        # Use fps=60, anim_ms=50 → frames_per_seg = max(1, int(60*50/1000)) = max(1,3) = 3
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=50)
+        # Tick enough times to finish
+        for _ in range(anim._frames_per_seg):
+            anim.tick()
+        assert anim.done is True
+
+    def test_tick_advances_frame(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=300)
+        assert anim._frame == 0
+        anim.tick()
+        assert anim._frame == 1
+
+    def test_tick_advances_segment(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=50)
+        fpf = anim._frames_per_seg
+        for _ in range(fpf):
+            anim.tick()
+        assert anim._seg_idx == 1
+        assert anim._frame == 0
+
+    def test_tick_when_done_no_change(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=50)
+        for _ in range(anim._frames_per_seg):
+            anim.tick()
+        assert anim.done
+        seg_idx = anim._seg_idx
+        anim.tick()  # should not raise
+        assert anim._seg_idx == seg_idx
+
+    def test_current_pixel_pos_at_start(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=300)
+        # At frame 0, t=0, should be at from_sq center
+        cx, cy = anim.current_pixel_pos()
+        fx, fy = renderer.sq_center(20)
+        assert cx == fx
+        assert cy == fy
+
+    def test_current_pixel_pos_when_done(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        anim = MoveAnimation(move, state, renderer, fps=60, anim_ms=50)
+        for _ in range(anim._frames_per_seg):
+            anim.tick()
+        assert anim.done
+        cx, cy = anim.current_pixel_pos()
+        tx, ty = renderer.sq_center(move.to_sq)
+        assert cx == tx
+        assert cy == ty
+
+    def test_current_pixel_pos_interpolated(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        # Use fps=10, anim_ms=200 → frames_per_seg = max(1, int(10*200/1000)) = 2
+        anim = MoveAnimation(move, state, renderer, fps=10, anim_ms=200)
+        anim.tick()  # frame=1
+        cx, cy = anim.current_pixel_pos()
+        fx, fy = renderer.sq_center(20)
+        tx, ty = renderer.sq_center(16)
+        # t = 1 / max(1, 2-1) = 1.0
+        assert cx == int(fx + (tx - fx) * 1.0)
+        assert cy == int(fy + (ty - fy) * 1.0)
+
+    def test_frames_per_seg_minimum_one(self):
+        renderer = self._make_renderer()
+        move = self._make_simple_move()
+        state = BoardState.initial()
+        # Very low anim_ms ensures frames_per_seg=1
+        anim = MoveAnimation(move, state, renderer, fps=1, anim_ms=50)
+        assert anim._frames_per_seg >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +351,7 @@ class TestPygameGameInit:
         assert game._legal_moves == []
         assert game._ai_thinking is False
         assert game.last_move is None
+        assert game._animation is None
 
 
 # ---------------------------------------------------------------------------
@@ -238,6 +373,44 @@ class TestCurrentAiAndHumanTurn:
         # White is AI (player=1)
         assert isinstance(game._current_ai(), AIProcess)
         assert game._is_human_turn() is False
+
+
+# ---------------------------------------------------------------------------
+# _start_animation
+# ---------------------------------------------------------------------------
+
+class TestStartAnimation:
+    def test_start_animation_sets_animation(self):
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        moves = game.board.get_legal_moves()
+        move = moves[0]
+        game._start_animation(move)
+        assert game._animation is not None
+        assert game._animation.move is move
+
+    def test_start_animation_clears_selection(self):
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        game._selected_sq = 20
+        game._legal_targets = [16]
+        game._legal_moves = [Move(from_sq=20, to_sq=16)]
+        moves = game.board.get_legal_moves()
+        game._start_animation(moves[0])
+        assert game._selected_sq is None
+        assert game._legal_targets == []
+        assert game._legal_moves == []
+
+    def test_start_animation_clears_ai_thinking(self):
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        game._ai_thinking = True
+        moves = game.board.get_legal_moves()
+        game._start_animation(moves[0])
+        assert game._ai_thinking is False
 
 
 # ---------------------------------------------------------------------------
@@ -337,9 +510,24 @@ class TestStartAiTurnAndPollAi:
             time.sleep(0.5)
             initial_player = game.board.current_player
             game._poll_ai()
-            # If move was returned, board advanced
+            # If move was returned, animation should have started
             # (might still be pending if AI is slow)
         finally:
+            game._cleanup()
+
+    def test_poll_ai_starts_animation_when_move_returned(self):
+        cfg = random_vs_human_config()
+        game = PygameGame(cfg)
+        try:
+            ai = game._ai[1]
+            fake_move = Move(from_sq=20, to_sq=16)
+            with patch.object(ai, "poll_move", return_value=fake_move), \
+                 patch.object(ai, "is_pending", return_value=True):
+                game._poll_ai()
+            assert game._animation is not None
+            assert game._animation.move is fake_move
+        finally:
+            game._ai[1]._pending = False
             game._cleanup()
 
     def test_poll_ai_none_response_clears_thinking(self):
@@ -434,7 +622,7 @@ class TestHandleClick:
         game.handle_click(x, y)
         assert game._selected_sq == 20
 
-    def test_click_legal_target_applies_move(self):
+    def test_click_legal_target_starts_animation(self):
         cfg = human_vs_human_config()
         game = PygameGame(cfg)
         game._cleanup()
@@ -447,8 +635,9 @@ class TestHandleClick:
             target_sq = game._legal_targets[0]
             x_t, y_t = game.renderer.sq_center(target_sq)
             game.handle_click(x_t, y_t)
-            # Move should have been applied
+            # _start_animation should have been called
             assert game._selected_sq is None
+            assert game._animation is not None
 
     def test_click_other_own_piece_reselects(self):
         cfg = human_vs_human_config()
@@ -557,6 +746,27 @@ class TestRender:
         game = PygameGame(cfg)
         game._cleanup()
         game.board = Board(game.board.wp, game.board.bp, game.board.kings, 0)
+        screen = self.get_screen()
+        game._render(screen)
+
+    def test_render_with_animation_active(self):
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        moves = game.board.get_legal_moves()
+        game._start_animation(moves[0])
+        screen = self.get_screen()
+        game._render(screen)
+
+    def test_render_with_animation_done(self):
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        moves = game.board.get_legal_moves()
+        game._start_animation(moves[0])
+        # Complete the animation
+        while not game._animation.done:
+            game._animation.tick()
         screen = self.get_screen()
         game._render(screen)
 
@@ -680,6 +890,35 @@ class TestRun:
              patch("pygame.quit"):
             mock_clock.return_value.tick = MagicMock()
             game.run()
+
+    def test_run_animation_ticks_and_applies_move(self):
+        """Animation completes during run loop → _apply_and_advance is called."""
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        moves = game.board.get_legal_moves()
+        game._start_animation(moves[0])
+        # Force animation to be "done" on next tick
+        game._animation._seg_idx = len(game._animation._segments)
+
+        apply_called = [False]
+        original_apply = game._apply_and_advance
+
+        def mock_apply(move):
+            apply_called[0] = True
+            original_apply(move)
+            game._animation = None  # clear so loop proceeds normally
+
+        quit_event = pygame.event.Event(pygame.QUIT)
+        with patch("pygame.display.set_mode", return_value=self._make_surface()), \
+             patch("pygame.display.set_caption"), \
+             patch("pygame.display.flip"), \
+             patch("pygame.event.get", return_value=[quit_event]), \
+             patch("pygame.time.Clock") as mock_clock, \
+             patch.object(game, "_apply_and_advance", side_effect=mock_apply), \
+             patch("pygame.quit"):
+            mock_clock.return_value.tick = MagicMock()
+            game.run()
+        assert apply_called[0] is True
 
     def test_run_ai_not_thinking_calls_start(self):
         """Gdy AI nie myśli, wywołuje _start_ai_turn (line 206)."""

@@ -282,6 +282,14 @@ class TestDrawPieces:
         )
         renderer.draw_pieces(surface, state)
 
+    def test_draw_pieces_with_skip_sq(self, renderer, surface, initial_state):
+        # skip_sq=20 → piece at sq20 should not be drawn (method runs without error)
+        renderer.draw_pieces(surface, initial_state, skip_sq=20)
+
+    def test_draw_pieces_skip_sq_none(self, renderer, surface, initial_state):
+        # skip_sq=None → all pieces drawn normally
+        renderer.draw_pieces(surface, initial_state, skip_sq=None)
+
 
 # ---------------------------------------------------------------------------
 # _draw_piece
@@ -299,6 +307,43 @@ class TestDrawPiece:
 
     def test_draw_black_king(self, renderer, surface):
         renderer._draw_piece(surface, 17, C_BLACK_PIECE, True)
+
+    def test_draw_piece_with_explicit_cx_cy(self, renderer, surface):
+        # Pass explicit cx, cy coordinates instead of sq
+        renderer._draw_piece(surface, None, C_WHITE_PIECE, False, cx=200, cy=200)
+
+    def test_draw_piece_with_explicit_cx_cy_king(self, renderer, surface):
+        renderer._draw_piece(surface, None, C_BLACK_PIECE, True, cx=300, cy=300)
+
+
+class TestDrawAnimatedPieceForSq:
+    def test_draw_animated_white_piece(self, renderer, surface, initial_state):
+        # sq20 is white in initial state
+        renderer.draw_animated_piece_for_sq(surface, 20, initial_state, 200, 200)
+
+    def test_draw_animated_black_piece(self, renderer, surface, initial_state):
+        # sq0 is black in initial state
+        renderer.draw_animated_piece_for_sq(surface, 0, initial_state, 100, 100)
+
+    def test_draw_animated_empty_sq_returns_early(self, renderer, surface):
+        # sq12 is empty in initial state (gap between pieces)
+        state = BoardState(
+            white_pieces=1 << 20,
+            black_pieces=1 << 0,
+            kings=0,
+            current_player=1,
+        )
+        # sq12 is not set → should return without drawing
+        renderer.draw_animated_piece_for_sq(surface, 12, state, 150, 150)
+
+    def test_draw_animated_king_piece(self, renderer, surface):
+        state = BoardState(
+            white_pieces=1 << 17,
+            black_pieces=1 << 9,
+            kings=1 << 17,
+            current_player=1,
+        )
+        renderer.draw_animated_piece_for_sq(surface, 17, state, 250, 250)
 
 
 # ---------------------------------------------------------------------------

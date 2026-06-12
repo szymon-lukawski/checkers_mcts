@@ -120,10 +120,10 @@ def _find_captures_from(
     current_player: int,
     captured_mask: int,
     is_king: bool,
-) -> list[tuple[int, list[int]]]:
+) -> list[tuple[int, list[int], list[int]]]:
     """
     Rekurencyjnie szuka bić z pola sq.
-    Zwraca listę (ostateczne_pole_docelowe, lista_zbitych_pól).
+    Zwraca listę (ostateczne_pole_docelowe, lista_zbitych_pól, ścieżka_pośrednia).
     captured_mask: bitmaska już zbitych pionków (wirtualnie usunięte z planszy).
     is_king: czy bijący pionek jest damką.
     """
@@ -137,7 +137,7 @@ def _find_captures_from(
     # Tylko zwykłe PRZEMIESZCZANIE jest ograniczone do kierunku do przodu.
     dirs = ALL_DIRS
 
-    results: list[tuple[int, list[int]]] = []
+    results: list[tuple[int, list[int], list[int]]] = []
 
     for d in dirs:
         if is_king:
@@ -159,10 +159,10 @@ def _find_captures_from(
                             land, wp, bp, kings, current_player, new_captured, True
                         )
                         if continuations:
-                            for (final_sq, cap_list) in continuations:
-                                results.append((final_sq, [mid_candidate] + cap_list))
+                            for (final_sq, cap_list, ipath) in continuations:
+                                results.append((final_sq, [mid_candidate] + cap_list, [land] + ipath))
                         else:
-                            results.append((land, [mid_candidate]))
+                            results.append((land, [mid_candidate], []))
                         land = NEIGHBORS[land][d]
                     break  # po biciu nie przechodzimy przez kolejne pionki
                 cur = mid_candidate
@@ -183,10 +183,10 @@ def _find_captures_from(
                 to_sq, wp, bp, kings, current_player, new_captured, False
             )
             if continuations:
-                for (final_sq, cap_list) in continuations:
-                    results.append((final_sq, [mid_sq] + cap_list))
+                for (final_sq, cap_list, ipath) in continuations:
+                    results.append((final_sq, [mid_sq] + cap_list, [to_sq] + ipath))
             else:
-                results.append((to_sq, [mid_sq]))
+                results.append((to_sq, [mid_sq], []))
 
     return results
 
@@ -212,13 +212,13 @@ def get_captures(
         paths = _find_captures_from(
             from_sq, wp, bp, kings, current_player, 0, is_king
         )
-        for (to_sq, cap_list) in paths:
+        for (to_sq, cap_list, path) in paths:
             n = len(cap_list)
             if n > max_captures:
                 max_captures = n
                 all_moves = []
             if n == max_captures:
-                all_moves.append(Move(from_sq=from_sq, to_sq=to_sq, captured=cap_list))
+                all_moves.append(Move(from_sq=from_sq, to_sq=to_sq, captured=cap_list, path=path))
 
     return all_moves
 

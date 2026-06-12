@@ -141,3 +141,27 @@ class TestGameConfig:
         cfg = GameConfig(white_agent=white, black_agent=black)
         assert cfg.white_agent.agent_type == AgentType.MINIMAX
         assert cfg.black_agent.agent_type == AgentType.MCTS
+
+    def test_anim_ms_default(self):
+        cfg = GameConfig()
+        assert cfg.anim_ms == 300
+
+    def test_anim_ms_min(self):
+        cfg = GameConfig(anim_ms=50)
+        assert cfg.anim_ms == 50
+
+    def test_anim_ms_max(self):
+        cfg = GameConfig(anim_ms=2000)
+        assert cfg.anim_ms == 2000
+
+    def test_anim_ms_too_low(self):
+        with pytest.raises(ValidationError):
+            GameConfig(anim_ms=49)
+
+    def test_anim_ms_too_high(self):
+        with pytest.raises(ValidationError):
+            GameConfig(anim_ms=2001)
+
+    def test_anim_ms_custom(self):
+        cfg = GameConfig(anim_ms=500)
+        assert cfg.anim_ms == 500

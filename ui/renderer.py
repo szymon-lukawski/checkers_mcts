@@ -89,6 +89,7 @@ class Renderer:
         selected_sq: int | None = None,
         legal_targets: list[int] | None = None,
         last_move: Move | None = None,
+        skip_sq: int | None = None,
     ) -> None:
         # Podświetl ostatni ruch
         if last_move:
@@ -105,6 +106,8 @@ class Renderer:
 
         # Rysuj pionki
         for sq in range(32):
+            if sq == skip_sq:
+                continue
             bit = 1 << sq
             if state.white_pieces & bit:
                 self._draw_piece(surface, sq, C_WHITE_PIECE, bool(state.kings & bit))
@@ -117,14 +120,35 @@ class Renderer:
                 cx, cy = self.sq_center(sq)
                 pygame.draw.circle(surface, C_LEGAL_DOT, (cx, cy), self.dot_r)
 
-    def _draw_piece(
+    def draw_animated_piece_for_sq(
         self,
         surface: pygame.Surface,
         sq: int,
+        state: BoardState,
+        cx: int,
+        cy: int,
+    ) -> None:
+        """Draw the piece that was at `sq` at arbitrary pixel position."""
+        bit = 1 << sq
+        if state.white_pieces & bit:
+            color = C_WHITE_PIECE
+        elif state.black_pieces & bit:
+            color = C_BLACK_PIECE
+        else:
+            return
+        self._draw_piece(surface, None, color, bool(state.kings & bit), cx=cx, cy=cy)
+
+    def _draw_piece(
+        self,
+        surface: pygame.Surface,
+        sq: int | None,
         color: tuple[int, int, int],
         is_king: bool,
+        cx: int | None = None,
+        cy: int | None = None,
     ) -> None:
-        cx, cy = self.sq_center(sq)
+        if cx is None or cy is None:
+            cx, cy = self.sq_center(sq)
         # Cień
         pygame.draw.circle(surface, (20, 20, 20), (cx + 2, cy + 3), self.piece_r)
         # Pionek

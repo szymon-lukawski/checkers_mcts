@@ -33,7 +33,7 @@ WIN_H        = 756   # 720 + 36 (pasek statusu gry)
 
 TITLE_TOP    = 15
 PANEL_Y      = 75
-PANEL_H      = 570
+PANEL_H      = 500
 PANEL_W      = 320
 PANEL_L_X    = 20
 PANEL_R_X    = 380
@@ -45,9 +45,10 @@ FIRST_BTN_DY = 38    # offset od górnej krawędzi panelu
 STEP_BTN_W   = 32
 STEP_BTN_H   = 32
 
+ANIM_Y       = PANEL_Y + PANEL_H + 18
 START_W      = 220
 START_H      = 52
-START_Y      = WIN_H - 76
+START_Y      = ANIM_Y + 68
 
 _AGENT_ORDER = [AgentType.HUMAN, AgentType.RANDOM, AgentType.MINIMAX, AgentType.MCTS]
 _AGENT_LABELS = {
@@ -229,6 +230,7 @@ class MenuScreen:
         self.window_size  = window_size
         self._white_panel = _AgentPanel("BIAŁE",  PANEL_L_X, PANEL_Y)
         self._black_panel = _AgentPanel("CZARNE", PANEL_R_X, PANEL_Y)
+        self._anim_stepper = _Stepper(20, ANIM_Y + 28, 300, 50, 2000, 50, WIN_W - 40)
         start_x = (window_size - START_W) // 2
         self._start_btn   = _Button(
             pygame.Rect(start_x, START_Y, START_W, START_H),
@@ -265,6 +267,7 @@ class MenuScreen:
                         return self._make_config()
                     self._white_panel.handle_click(mx, my)
                     self._black_panel.handle_click(mx, my)
+                    self._anim_stepper.handle_click(mx, my)
 
             self._draw(screen, fonts, (mx, my))
             pygame.display.flip()
@@ -274,6 +277,7 @@ class MenuScreen:
         return GameConfig(
             white_agent=self._white_panel.to_agent_config(),
             black_agent=self._black_panel.to_agent_config(),
+            anim_ms=self._anim_stepper.value,
         )
 
     def _draw(
@@ -297,6 +301,13 @@ class MenuScreen:
 
         self._white_panel.draw(screen, hover_pos, fonts)
         self._black_panel.draw(screen, hover_pos, fonts)
+
+        # Sekcja animacji
+        anim_lbl = fonts["small"].render(
+            f"Prędkość animacji: {self._anim_stepper.value} ms", True, C_PARAM_LABEL
+        )
+        screen.blit(anim_lbl, (20, ANIM_Y))
+        self._anim_stepper.draw(screen, fonts["normal"])
 
         mx, my = hover_pos
         hover = self._start_btn.contains(mx, my)

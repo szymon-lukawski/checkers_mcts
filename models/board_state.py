@@ -5,6 +5,7 @@ class Move(BaseModel):
     from_sq: int = Field(ge=0, le=31)
     to_sq: int = Field(ge=0, le=31)
     captured: list[int] = Field(default_factory=list)
+    path: list[int] = Field(default_factory=list)
 
     def __repr__(self) -> str:
         cap = f" x{self.captured}" if self.captured else ""

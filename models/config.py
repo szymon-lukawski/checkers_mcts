@@ -20,3 +20,4 @@ class GameConfig(BaseModel):
     black_agent: AgentConfig = AgentConfig(agent_type=AgentType.RANDOM)
     fps: int = Field(default=60, ge=1, le=120)
     window_size: int = Field(default=720, ge=400, le=1200)
+    anim_ms: int = Field(default=300, ge=50, le=2000)  # ms per jump segment

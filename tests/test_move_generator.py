@@ -233,8 +233,18 @@ class TestFindCapturesFrom:
         results = _find_captures_from(14, wp, bp, 0, 1, 0, False)
         assert len(results) >= 1
         # Find capture over sq9 landing at sq5
-        lands = {(final_sq, tuple(cap_list)) for (final_sq, cap_list) in results}
+        lands = {(final_sq, tuple(cap_list)) for (final_sq, cap_list, path) in results}
         assert (5, (9,)) in lands
+
+    def test_pawn_single_capture_path_empty(self):
+        # Single capture → path should be empty
+        wp = 1 << 14
+        bp = 1 << 9
+        results = _find_captures_from(14, wp, bp, 0, 1, 0, False)
+        single = [(fs, cl, p) for (fs, cl, p) in results if len(cl) == 1]
+        assert len(single) >= 1
+        for fs, cl, p in single:
+            assert p == []
 
     def test_pawn_multi_jump(self):
         # Białe at sq22, czarne at sq17 i sq9
@@ -245,8 +255,18 @@ class TestFindCapturesFrom:
         bp = (1 << 17) | (1 << 9)
         results = _find_captures_from(22, wp, bp, 0, 1, 0, False)
         # Should find 2-jump path
-        two_jump = [(fs, cl) for (fs, cl) in results if len(cl) == 2]
+        two_jump = [(fs, cl, p) for (fs, cl, p) in results if len(cl) == 2]
         assert len(two_jump) >= 1
+
+    def test_pawn_multi_jump_path_has_intermediate(self):
+        # 2-jump capture should have 1 intermediate square in path
+        wp = 1 << 22
+        bp = (1 << 17) | (1 << 9)
+        results = _find_captures_from(22, wp, bp, 0, 1, 0, False)
+        two_jump = [(fs, cl, p) for (fs, cl, p) in results if len(cl) == 2]
+        assert len(two_jump) >= 1
+        for fs, cl, p in two_jump:
+            assert len(p) == 1  # 1 intermediate landing square
 
     def test_king_single_capture(self):
         # Damka at sq17, czarne at sq13 (UL dir)
@@ -255,9 +275,20 @@ class TestFindCapturesFrom:
         bp = 1 << 13
         kings = 1 << 17
         results = _find_captures_from(17, wp, bp, kings, 1, 0, True)
-        land_sqs = {fs for (fs, _) in results}
+        land_sqs = {fs for (fs, _, _p) in results}
         assert 8 in land_sqs  # lands at sq8
         assert 4 in land_sqs  # or sq4 (further along)
+
+    def test_king_single_capture_path_empty(self):
+        # King single capture (no continuation) → path should be empty
+        wp = 1 << 17
+        bp = 1 << 13
+        kings = 1 << 17
+        results = _find_captures_from(17, wp, bp, kings, 1, 0, True)
+        single = [(fs, cl, p) for (fs, cl, p) in results if len(cl) == 1]
+        assert len(single) >= 1
+        for fs, cl, p in single:
+            assert p == []
 
     def test_no_captures_available(self):
         # Brak sąsiednich przeciwników
@@ -338,6 +369,24 @@ class TestGetCaptures:
         captures = get_captures(wp, bp, 0, 1)
         for c in captures:
             assert isinstance(c, Move)
+
+    def test_single_capture_path_empty(self):
+        # Single capture → Move.path should be empty
+        wp = 1 << 14
+        bp = 1 << 9
+        captures = get_captures(wp, bp, 0, 1)
+        assert len(captures) == 1
+        assert captures[0].path == []
+
+    def test_multi_jump_path_has_intermediate(self):
+        # 2-jump capture → Move.path should have 1 intermediate square
+        wp = 1 << 22
+        bp = (1 << 17) | (1 << 9)
+        captures = get_captures(wp, bp, 0, 1)
+        two_jump = [c for c in captures if len(c.captured) == 2]
+        assert len(two_jump) >= 1
+        for c in two_jump:
+            assert len(c.path) == 1
 
 
 # ---------------------------------------------------------------------------

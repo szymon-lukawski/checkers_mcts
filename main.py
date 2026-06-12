@@ -14,7 +14,7 @@ from models.board_state import BoardState, Move
 from models.config import AgentConfig, AgentType, GameConfig
 from ai.random_agent import RandomAgent
 from ai.ai_process import AIProcess
-from ui.renderer import Renderer
+from ui.renderer import Renderer, C_WHITE_PIECE, C_BLACK_PIECE
 
 # ---------------------------------------------------------------------------
 # Faza 1 – tryb headless
@@ -61,6 +61,48 @@ def run_headless(num_games: int = 1000) -> None:
 COLORS = {1: "Białe", 0: "Czarne"}
 
 
+class MoveAnimation:
+    """Animates a piece moving smoothly through waypoints."""
+
+    def __init__(
+        self,
+        move: Move,
+        board_state: BoardState,
+        renderer: Renderer,
+        fps: int,
+        anim_ms: int,
+    ) -> None:
+        waypoints = [move.from_sq] + move.path + [move.to_sq]
+        self._segments: list[tuple[int, int]] = list(zip(waypoints[:-1], waypoints[1:]))
+        self._frames_per_seg: int = max(1, int(fps * anim_ms / 1000))
+        self._seg_idx: int = 0
+        self._frame: int = 0
+        self.move = move
+        self._state = board_state
+        self._renderer = renderer
+
+    @property
+    def done(self) -> bool:
+        return self._seg_idx >= len(self._segments)
+
+    def tick(self) -> None:
+        if self.done:
+            return
+        self._frame += 1
+        if self._frame >= self._frames_per_seg:
+            self._frame = 0
+            self._seg_idx += 1
+
+    def current_pixel_pos(self) -> tuple[int, int]:
+        if self.done:
+            return self._renderer.sq_center(self.move.to_sq)
+        from_sq, to_sq = self._segments[self._seg_idx]
+        t = self._frame / max(1, self._frames_per_seg - 1)
+        fx, fy = self._renderer.sq_center(from_sq)
+        tx, ty = self._renderer.sq_center(to_sq)
+        return int(fx + (tx - fx) * t), int(fy + (ty - fy) * t)
+
+
 class PygameGame:
     """
     Zarządza stanem gry w UI. Obsługuje zarówno gracza-człowieka jak i AI.
@@ -86,6 +128,9 @@ class PygameGame:
         # Czy AI właśnie "myśli"
         self._ai_thinking = False
 
+        # Animacja ruchu
+        self._animation: MoveAnimation | None = None
+
     def _make_ai(self, cfg: AgentConfig) -> AIProcess | None:
         if cfg.agent_type == AgentType.HUMAN:
             return None
@@ -100,6 +145,19 @@ class PygameGame:
     # ------------------------------------------------------------------
     # Logika ruchu
     # ------------------------------------------------------------------
+
+    def _start_animation(self, move: Move) -> None:
+        self._animation = MoveAnimation(
+            move,
+            self.board.to_state(),
+            self.renderer,
+            self.config.fps,
+            self.config.anim_ms,
+        )
+        self._selected_sq = None
+        self._legal_targets = []
+        self._legal_moves = []
+        self._ai_thinking = False
 
     def _apply_and_advance(self, move: Move) -> None:
         self.board = self.board.apply_move(move)
@@ -120,7 +178,7 @@ class PygameGame:
         if ai and ai.is_pending():
             move = ai.poll_move()
             if move is not None:
-                self._apply_and_advance(move)
+                self._start_animation(move)
             elif not ai.is_pending():
                 # AI odpowiedziało None → brak ruchów → koniec gry
                 self._ai_thinking = False
@@ -149,7 +207,7 @@ class PygameGame:
                 candidates = [m for m in self._legal_moves if m.to_sq == sq]
                 # Wybierz tę z największą liczbą bić (zasada większości już jest w get_legal_moves)
                 move = max(candidates, key=lambda m: len(m.captured))
-                self._apply_and_advance(move)
+                self._start_animation(move)
             elif own >> sq & 1:
                 # Kliknięto inny własny pionek
                 self._select(sq)
@@ -191,6 +249,19 @@ class PygameGame:
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self.handle_click(*event.pos)
 
+            # Tick animacji
+            if self._animation is not None:
+                self._animation.tick()
+                if self._animation.done:
+                    move = self._animation.move
+                    self._animation = None
+                    self._apply_and_advance(move)
+                # Rysuj i kontynuuj (pomijaj logikę AI podczas animacji)
+                self._render(screen)
+                pygame.display.flip()
+                clock.tick(self.config.fps)
+                continue
+
             # Sprawdź koniec gry
             terminal, result = self.board.is_terminal()
             if terminal:
@@ -228,7 +299,14 @@ class PygameGame:
             selected_sq=self._selected_sq,
             legal_targets=self._legal_targets,
             last_move=self.last_move,
+            skip_sq=self._animation.move.from_sq if self._animation else None,
         )
+        # Rysuj animowany pionek na wierzchu
+        if self._animation and not self._animation.done:
+            cx, cy = self._animation.current_pixel_pos()
+            self.renderer.draw_animated_piece_for_sq(
+                screen, self._animation.move.from_sq, self.board.to_state(), cx, cy
+            )
 
         if result is not None:
             winner = {1: "Białe wygrały!", -1: "Czarne wygrały!", 0: "Remis!"}

@@ -54,6 +54,15 @@ class TestMove:
         assert m.from_sq == 0
         assert m.to_sq == 31
 
+    def test_move_path_default_empty(self):
+        m = Move(from_sq=5, to_sq=10)
+        assert m.path == []
+
+    def test_move_with_path(self):
+        m = Move(from_sq=5, to_sq=20, captured=[9, 14], path=[13])
+        assert m.path == [13]
+        assert len(m.path) == 1
+
 
 # ---------------------------------------------------------------------------
 # BoardState

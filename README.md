@@ -6,7 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-**Brazilian Checkers** (Warcaby Brazylijskie) with three AI opponents — Random, Minimax + Alpha-Beta, and MCTS — featuring a full Pygame GUI and a pre-game menu.
+**Brazilian Checkers** (Warcaby Brazylijskie) with three AI opponents — Random, Minimax + Alpha-Beta, and MCTS — featuring a full Pygame GUI, animated piece movement, and a pre-game menu.
+
+> 🎬 **Demo** — _add your screen recording here_
 
 ```
   .  ●  .  ●  .  ●  .  ●      ← Black (top)
@@ -28,10 +30,11 @@
   - **Random** — baseline, near-instant
   - **Minimax + Alpha-Beta** — configurable depth (1–12), with material + positional evaluation
   - **MCTS** — configurable time budget (500–5 000 ms), UCT selection
+- **Animated movement** — pieces glide smoothly through each jump of a multi-capture; speed configurable in the menu (50 ms – 2 000 ms per segment)
 - **Bitboard engine** — compact 32-field representation, precomputed neighbour table, no manual bit-shift errors
 - **Non-blocking AI** — AI runs in a separate `multiprocessing` process; the UI stays responsive
 - **Pygame GUI** — board, piece highlights, legal-move dots, last-move indicator, status bar
-- **400 tests, 100 % line coverage** — `pytest` + `pytest-cov`
+- **485 tests, 100 % line coverage** — `pytest` + `pytest-cov`
 
 ---
 

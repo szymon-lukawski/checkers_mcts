@@ -22,6 +22,7 @@ from ui.menu import (
     START_H,
     WIN_W,
     WIN_H,
+    ANIM_Y,
 )
 
 
@@ -302,6 +303,46 @@ class TestMenuScreen:
         assert isinstance(cfg.white_agent, AgentConfig)
         assert isinstance(cfg.black_agent, AgentConfig)
 
+    def test_make_config_has_anim_ms(self):
+        menu = MenuScreen()
+        cfg = menu._make_config()
+        assert cfg.anim_ms == menu._anim_stepper.value
+
+    def test_make_config_anim_ms_default(self):
+        menu = MenuScreen()
+        cfg = menu._make_config()
+        assert cfg.anim_ms == 300
+
+    def test_anim_stepper_exists(self):
+        menu = MenuScreen()
+        assert hasattr(menu, "_anim_stepper")
+        assert menu._anim_stepper.value == 300
+        assert menu._anim_stepper.min_val == 50
+        assert menu._anim_stepper.max_val == 2000
+
+    def test_anim_stepper_click_minus(self):
+        menu = MenuScreen()
+        initial = menu._anim_stepper.value
+        cx = menu._anim_stepper._r_minus.centerx
+        cy = menu._anim_stepper._r_minus.centery
+        menu._anim_stepper.handle_click(cx, cy)
+        assert menu._anim_stepper.value == initial - 50
+
+    def test_anim_stepper_click_plus(self):
+        menu = MenuScreen()
+        initial = menu._anim_stepper.value
+        cx = menu._anim_stepper._r_plus.centerx
+        cy = menu._anim_stepper._r_plus.centery
+        menu._anim_stepper.handle_click(cx, cy)
+        assert menu._anim_stepper.value == initial + 50
+
+    def test_anim_stepper_no_hit(self):
+        menu = MenuScreen()
+        initial = menu._anim_stepper.value
+        result = menu._anim_stepper.handle_click(0, 0)
+        assert result is False
+        assert menu._anim_stepper.value == initial
+
     def test_draw_no_exception(self, surface, fonts):
         menu = MenuScreen()
         menu._draw(surface, fonts, (0, 0))
@@ -356,6 +397,44 @@ class TestMenuScreen:
                 mock_clock.return_value.tick = MagicMock()
                 result = menu.run(surface)
         assert isinstance(result, GameConfig)
+
+    def test_run_return_key_has_anim_ms(self, surface):
+        menu = MenuScreen()
+        return_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, mod=0, unicode="")
+        with patch("pygame.event.get", return_value=[return_event]), \
+             patch("pygame.display.flip"), \
+             patch("pygame.time.Clock") as mock_clock:
+            mock_clock.return_value.tick = MagicMock()
+            result = menu.run(surface)
+        assert isinstance(result, GameConfig)
+        assert result.anim_ms == 300
+
+    def test_run_anim_stepper_click(self, surface):
+        """Kliknięcie w anim_stepper zmienia wartość, nie kończy run()."""
+        menu = MenuScreen()
+        initial_val = menu._anim_stepper.value
+        anim_cx = menu._anim_stepper._r_plus.centerx
+        anim_cy = menu._anim_stepper._r_plus.centery
+        anim_click = pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, button=1, pos=(anim_cx, anim_cy)
+        )
+        quit_event = pygame.event.Event(pygame.QUIT)
+        events_sequence = [[anim_click], [quit_event]]
+        call_count = [0]
+
+        def side_effect():
+            ev = events_sequence[min(call_count[0], len(events_sequence) - 1)]
+            call_count[0] += 1
+            return ev
+
+        with patch("pygame.mouse.get_pos", return_value=(anim_cx, anim_cy)), \
+             patch("pygame.event.get", side_effect=side_effect), \
+             patch("pygame.display.flip"), \
+             patch("pygame.time.Clock") as mock_clock:
+            mock_clock.return_value.tick = MagicMock()
+            result = menu.run(surface)
+        assert result is None
+        assert menu._anim_stepper.value == initial_val + 50
 
     def test_run_panel_click_no_return(self, surface):
         """Kliknięcie w panel (nie w start button) nie kończy run()."""
