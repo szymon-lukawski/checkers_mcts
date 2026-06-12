@@ -8,21 +8,16 @@
 
 **Brazilian Checkers** (Warcaby Brazylijskie) with three AI opponents — Random, Minimax + Alpha-Beta, and MCTS — featuring a full Pygame GUI, animated piece movement, and a pre-game menu.
 
-> 🎬 **Demo**
-https://github.com/user-attachments/assets/c3cac92d-3fda-4620-ab00-74676c1aba5a
 
-```
-  .  ●  .  ●  .  ●  .  ●      ← Black (top)
-  ●  .  ●  .  ●  .  ●  .
-  .  ●  .  ●  .  ●  .  ●
-  .  .  .  .  .  .  .  .
-  .  .  .  .  .  .  .  .
-  ○  .  ○  .  ○  .  ○  .
-  .  ○  .  ○  .  ○  .  ○
-  ○  .  ○  .  ○  .  ○  .      ← White (bottom)
-```
 
----
+https://github.com/user-attachments/assets/47eafd28-acbe-46cb-b285-38620dccf84a
+
+
+
+
+https://github.com/user-attachments/assets/a64ee7fc-5a6d-41dd-b5a1-ea8c5adef8e4
+
+
 
 ## Features
 
