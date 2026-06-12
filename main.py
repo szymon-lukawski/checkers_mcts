@@ -131,6 +131,9 @@ class PygameGame:
         # Animacja ruchu
         self._animation: MoveAnimation | None = None
 
+        # Liczba symulacji ostatniego ruchu MCTS
+        self._last_mcts_simulations: int = 0
+
     def _make_ai(self, cfg: AgentConfig) -> AIProcess | None:
         if cfg.agent_type == AgentType.HUMAN:
             return None
@@ -178,6 +181,7 @@ class PygameGame:
         if ai and ai.is_pending():
             move = ai.poll_move()
             if move is not None:
+                self._last_mcts_simulations = ai.last_simulations
                 self._start_animation(move)
             elif not ai.is_pending():
                 # AI odpowiedziało None → brak ruchów → koniec gry
@@ -308,6 +312,11 @@ class PygameGame:
                 screen, self._animation.move.from_sq, self.board.to_state(), cx, cy
             )
 
+        mcts_suffix = (
+            f"  |  MCTS: {self._last_mcts_simulations} iter."
+            if self._last_mcts_simulations > 0
+            else ""
+        )
         if result is not None:
             winner = {1: "Białe wygrały!", -1: "Czarne wygrały!", 0: "Remis!"}
             status = winner.get(result, "Koniec gry")
@@ -317,10 +326,10 @@ class PygameGame:
             w, b = self.board.piece_count()
             status = (
                 f"Ruch: {COLORS[self.board.current_player]}  |  "
-                f"Białe: {w}  Czarne: {b}"
+                f"Białe: {w}  Czarne: {b}{mcts_suffix}"
             )
         else:
-            status = f"AI ({COLORS[self.board.current_player]}) myśli..."
+            status = f"AI ({COLORS[self.board.current_player]}) myśli...{mcts_suffix}"
 
         self.renderer.draw_status(screen, status)
 

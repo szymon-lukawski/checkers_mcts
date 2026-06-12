@@ -106,6 +106,9 @@ class TestAiWorker:
 
         # W pozycji startowej powinien być ruch
         assert raw is not None
+        assert "move" in raw
+        assert "simulations" in raw
+        assert raw["move"] is not None
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +122,7 @@ class TestAIProcess:
         try:
             assert proc._process.is_alive()
             assert proc._pending is False
+            assert proc.last_simulations == 0
         finally:
             proc.stop()
 
@@ -165,6 +169,7 @@ class TestAIProcess:
                 time.sleep(0.05)
             # Losowy agent z pozycji startowej powinien zwrócić ruch
             assert isinstance(move, Move)
+            assert isinstance(proc.last_simulations, int)
         finally:
             proc.stop()
 

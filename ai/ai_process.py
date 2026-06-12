@@ -42,7 +42,11 @@ def ai_worker(
             break
         state = BoardState.model_validate(raw)
         move = agent.get_best_move(state)
-        response_queue.put(move.model_dump() if move else None)
+        simulations = getattr(agent, "last_simulations", 0)
+        response_queue.put({
+            "move": move.model_dump() if move else None,
+            "simulations": simulations,
+        })
 
 
 class AIProcess:
@@ -60,6 +64,7 @@ class AIProcess:
         )
         self._process.start()
         self._pending = False
+        self.last_simulations: int = 0
 
     def request_move(self, state: BoardState) -> None:
         """Wyślij żądanie ruchu (nieblokujące)."""
@@ -77,9 +82,11 @@ class AIProcess:
         try:
             raw = self._resp_q.get_nowait()
             self._pending = False
-            if raw is None:
+            self.last_simulations = raw.get("simulations", 0)
+            move_data = raw["move"]
+            if move_data is None:
                 return None
-            return Move.model_validate(raw)
+            return Move.model_validate(move_data)
         except Exception:
             return None
 

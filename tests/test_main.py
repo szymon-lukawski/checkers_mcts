@@ -352,6 +352,7 @@ class TestPygameGameInit:
         assert game._ai_thinking is False
         assert game.last_move is None
         assert game._animation is None
+        assert game._last_mcts_simulations == 0
 
 
 # ---------------------------------------------------------------------------
@@ -521,11 +522,13 @@ class TestStartAiTurnAndPollAi:
         try:
             ai = game._ai[1]
             fake_move = Move(from_sq=20, to_sq=16)
+            ai.last_simulations = 999
             with patch.object(ai, "poll_move", return_value=fake_move), \
                  patch.object(ai, "is_pending", return_value=True):
                 game._poll_ai()
             assert game._animation is not None
             assert game._animation.move is fake_move
+            assert game._last_mcts_simulations == 999
         finally:
             game._ai[1]._pending = False
             game._cleanup()
@@ -767,6 +770,23 @@ class TestRender:
         # Complete the animation
         while not game._animation.done:
             game._animation.tick()
+        screen = self.get_screen()
+        game._render(screen)
+
+    def test_render_with_mcts_simulations(self):
+        cfg = human_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        game._last_mcts_simulations = 1234
+        screen = self.get_screen()
+        game._render(screen)
+
+    def test_render_mcts_simulations_shown_for_ai_turn(self):
+        cfg = random_vs_human_config()
+        game = PygameGame(cfg)
+        game._cleanup()
+        game._last_mcts_simulations = 567
+        game._ai_thinking = False
         screen = self.get_screen()
         game._render(screen)
 

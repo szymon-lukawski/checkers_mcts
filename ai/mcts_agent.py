@@ -129,6 +129,7 @@ class MCTSAgent(BaseAgent):
     def __init__(self, time_limit_ms: int = 1000, c: float = math.sqrt(2)) -> None:
         self.time_limit_ms = time_limit_ms
         self.c = c
+        self.last_simulations: int = 0
 
     def get_best_move(self, state: BoardState) -> Move | None:
         root_state: State = state.to_tuple()
@@ -136,8 +137,10 @@ class MCTSAgent(BaseAgent):
 
         moves = get_legal_moves(wp, bp, kings, player)
         if not moves:
+            self.last_simulations = 0
             return None
         if len(moves) == 1:
+            self.last_simulations = 0
             return moves[0]
 
         root = MCTSNode(state=root_state)
@@ -155,6 +158,8 @@ class MCTSAgent(BaseAgent):
             # 4. Propagacja
             _backpropagate(node, result)
             simulations += 1
+
+        self.last_simulations = simulations
 
         if not root.children:
             return moves[0]
